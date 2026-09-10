@@ -1,0 +1,22 @@
+# https://www.robotstxt.org/robotstxt.html
+# Official robots.txt for tahmeed.com
+
+User-agent: *
+Allow: /
+Allow: /#store
+Allow: /#bookings
+Allow: /#videos
+Allow: /#contact
+Disallow: /api/admin/
+
+# Googlebot specific directives
+User-agent: Googlebot
+Allow: /
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.svg$
+
+# Sitemap location
+Sitemap: https://tahmeed.com/sitemap.xml

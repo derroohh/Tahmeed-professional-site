@@ -1,0 +1,6 @@
+{
+  "name": "Tahmeed.com",
+  "description": "Official artist portal, tour merchandise storefront, live performance bookings, music video hub, and management contact bureau for tahmeed.com, fully optimized for Google SEO.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
