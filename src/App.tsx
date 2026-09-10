@@ -452,7 +452,8 @@ export default function App() {
 
     const fallback: YouTubeVideoItem = {
       id: `vid-${Date.now()}`,
-      youtubeId: vid.youtubeId || 'dQw4w9WgXcQ',
+      youtubeId: vid.youtubeId || '',
+      videoUrl: vid.videoUrl || '',
       title: vid.title || 'Tahmeed Video',
       description: vid.description || '',
       category: vid.category || 'Official',
@@ -483,7 +484,8 @@ export default function App() {
   };
 
   const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
+    const targetId = id === 'send-emails' || id === 'email' ? 'contact' : id;
+    const el = document.getElementById(targetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
@@ -491,7 +493,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fbfbfd] text-stone-900 selection:bg-stone-900 selection:text-white">
-      {/* Top Navigation */}
+      {/* Top Navigation with Swipe-Down Reveal & 1-Tap Section Switching */}
       <Navbar
         cart={cart}
         onOpenCart={() => setCartDrawerOpen(true)}
@@ -500,13 +502,6 @@ export default function App() {
         onOpenAdmin={() => setAdminModalOpen(true)}
         onSearch={(q) => setSearchQuery(q)}
         searchQuery={searchQuery}
-      />
-
-      {/* Apple / Rockstar Style Sticky Section Sub-Navigation */}
-      <SectionSubNav
-        productCount={products.length}
-        serviceCount={services.length}
-        videoCount={videos.length}
         onNavigateToSection={scrollToSection}
       />
 
@@ -539,7 +534,10 @@ export default function App() {
       </main>
 
       {/* Corporate & SEO Footer */}
-      <Footer onOpenAdmin={() => setAdminModalOpen(true)} />
+      <Footer 
+        onOpenAdmin={() => setAdminModalOpen(true)} 
+        user={user} 
+      />
 
       {/* Slide-out Cart Drawer */}
       <CartDrawer

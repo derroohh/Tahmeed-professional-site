@@ -10,17 +10,22 @@ import {
   Video,
   ExternalLink,
   Music,
-  Disc
+  Disc,
+  Lock
 } from 'lucide-react';
+import { UserAccount } from '../types';
 
 interface FooterProps {
   onOpenAdmin: () => void;
+  user?: UserAccount | null;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const isAdmin = (user?.email || '').trim().toLowerCase() === 'derrickngure39@gmail.com';
 
   return (
     <footer className="bg-[#f5f5f7] text-[#6e6e73] text-xs border-t border-stone-200/90">
@@ -123,15 +128,30 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
             <h4 className="text-[#1d1d1f] font-bold text-xs uppercase tracking-wider mb-3">
               Content & Drops
             </h4>
-            <p className="text-[11px] text-stone-500 mb-3 leading-relaxed">
-              Authorized team can add new merch items, announce tour dates, embed new videos, and review bookings.
-            </p>
-            <button
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-1.5 bg-white hover:bg-stone-100 text-stone-800 text-xs font-medium px-4 py-2 rounded-full border border-stone-300 transition shadow-2xs active:scale-98"
-            >
-              <span>Launch Content Studio</span>
-            </button>
+            {isAdmin ? (
+              <>
+                <p className="text-[11px] text-stone-500 mb-3 leading-relaxed">
+                  Logged in as verified administrator ({user?.email}). You can manage inventory, upload media, and update site SEO.
+                </p>
+                <button
+                  onClick={onOpenAdmin}
+                  className="inline-flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2 rounded-full border border-stone-800 transition shadow-2xs active:scale-98"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Launch Content Studio</span>
+                </button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  Management controls restricted to authorized administrative email.
+                </p>
+                <div className="inline-flex items-center gap-1.5 text-[11px] text-stone-400 font-mono">
+                  <Lock className="w-3 h-3 text-stone-400" />
+                  <span>Restricted Access</span>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>

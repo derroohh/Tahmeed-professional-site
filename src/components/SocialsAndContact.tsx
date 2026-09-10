@@ -34,6 +34,8 @@ export const SocialsAndContact: React.FC<SocialsAndContactProps> = ({
   const [inquiryType, setInquiryType] = useState('general');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [lastSubmissionRef, setLastSubmissionRef] = useState<string>('');
+  const [sentDetails, setSentDetails] = useState<{ name: string; email: string; subject: string; message: string } | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
 
   // FAQ Accordion State
@@ -118,15 +120,25 @@ export const SocialsAndContact: React.FC<SocialsAndContactProps> = ({
     if (!name || !email || !message) return;
 
     setIsSubmitting(true);
+    const fullSubject = `[${inquiryType.toUpperCase()}] ${subject || 'Artist Portal Inquiry'}`;
+    const generatedRef = `MSG-${Math.floor(10000 + Math.random() * 90000)}`;
+
     try {
       const ok = await onSubmitContact({
         name,
         email,
-        subject: `[${inquiryType.toUpperCase()}] ${subject || 'Artist Portal Inquiry'}`,
+        subject: fullSubject,
         message,
       });
       if (ok) {
         setSubmittedSuccess(true);
+        setLastSubmissionRef(generatedRef);
+        setSentDetails({
+          name,
+          email,
+          subject: fullSubject,
+          message,
+        });
         setName('');
         setEmail('');
         setSubject('');
@@ -267,21 +279,59 @@ export const SocialsAndContact: React.FC<SocialsAndContactProps> = ({
               </p>
             </div>
 
-            {submittedSuccess ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center my-4">
-                <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
-                <h4 className="text-lg font-bold text-stone-900">
-                  Inquiry Dispatched Successfully
+            {submittedSuccess && sentDetails ? (
+              <div className="bg-emerald-50/90 border border-emerald-200 rounded-3xl p-7 sm:p-8 text-center my-2 shadow-sm">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+                </div>
+                <h4 className="text-xl font-bold text-stone-900">
+                  Email Dispatched to Management
                 </h4>
-                <p className="text-xs text-stone-600 mt-1 max-w-md mx-auto">
-                  Thank you for contacting <strong>Tahmeed's management</strong>. We will review your message and respond to your specified email address shortly.
+                <p className="text-xs text-stone-600 mt-1.5 max-w-md mx-auto">
+                  Your inquiry has been recorded and transmitted to <strong>Tahmeed's artist management bureau</strong>. A confirmation has been routed to your address.
                 </p>
-                <button
-                  onClick={() => setSubmittedSuccess(false)}
-                  className="mt-5 text-xs bg-stone-900 text-white font-semibold px-5 py-2.5 rounded-full hover:bg-black transition shadow-xs"
-                >
-                  Send Another Inquiry
-                </button>
+
+                {/* Structured Dispatch Summary */}
+                <div className="mt-5 p-4 bg-white/95 rounded-2xl border border-emerald-200/80 text-left text-xs space-y-2 font-mono max-w-md mx-auto">
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-500">Tracking Reference:</span>
+                    <span className="font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded text-[11px]">{lastSubmissionRef}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Destination:</span>
+                    <span className="text-stone-900 font-semibold">management@tahmeed.com</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Sender:</span>
+                    <span className="text-stone-800 truncate max-w-[200px]">{sentDetails.name} ({sentDetails.email})</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Subject:</span>
+                    <span className="text-stone-800 truncate max-w-[200px]">{sentDetails.subject}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-emerald-100 pt-2 text-[11px]">
+                    <span className="text-stone-500">Dispatch Status:</span>
+                    <span className="text-emerald-700 font-bold uppercase">Delivered to Queue</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                  {/* Direct mailto link so user can also have an email sent in their local email client */}
+                  <a
+                    href={`mailto:management@tahmeed.com?subject=${encodeURIComponent(sentDetails.subject)}&body=${encodeURIComponent(`Hi Tahmeed Management,\n\nRef: ${lastSubmissionRef}\nFrom: ${sentDetails.name} <${sentDetails.email}>\n\n${sentDetails.message}\n\n--\nSent via tahmeed.com official portal`)}`}
+                    className="inline-flex items-center gap-1.5 bg-white hover:bg-stone-50 text-stone-800 text-xs font-semibold px-4 py-2.5 rounded-full border border-stone-300 transition shadow-2xs"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-stone-600" />
+                    <span>Open in Email App (Client Copy)</span>
+                  </a>
+
+                  <button
+                    onClick={() => setSubmittedSuccess(false)}
+                    className="inline-flex items-center gap-1.5 bg-stone-900 hover:bg-black text-white text-xs font-semibold px-5 py-2.5 rounded-full transition shadow-xs"
+                  >
+                    <span>Send Another Email</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">

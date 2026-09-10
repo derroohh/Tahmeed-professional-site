@@ -75,7 +75,8 @@ export interface Order {
 
 export interface YouTubeVideoItem {
   id: string;
-  youtubeId: string;
+  youtubeId?: string;
+  videoUrl?: string;
   title: string;
   description: string;
   category: string;

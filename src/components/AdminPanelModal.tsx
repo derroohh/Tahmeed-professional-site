@@ -16,7 +16,12 @@ import {
   Code,
   Terminal,
   ShieldCheck,
-  ShoppingBag
+  ShoppingBag,
+  Upload,
+  Image as ImageIcon,
+  Film,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Product, Service, Booking, Order, YouTubeVideoItem, SeoConfig } from '../types';
 
@@ -68,12 +73,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdStock, setNewProdStock] = useState('25');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadSuccess, setImageUploadSuccess] = useState('');
 
   // New Video Form State
+  const [newVideoType, setNewVideoType] = useState<'local' | 'youtube'>('local');
   const [newVideoId, setNewVideoId] = useState('');
+  const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
-  const [newVideoCategory, setNewVideoCategory] = useState('Music Video');
+  const [newVideoCategory, setNewVideoCategory] = useState('Official Video');
   const [newVideoDesc, setNewVideoDesc] = useState('');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadSuccess, setVideoUploadSuccess] = useState('');
 
   // SEO Form State
   const [seoTitle, setSeoTitle] = useState(seoConfig.siteTitle);
@@ -82,6 +93,97 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [seoSaved, setSeoSaved] = useState(false);
 
   if (!isOpen) return null;
+
+  // File to base64 helper
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setImageUploadSuccess('');
+    try {
+      const base64Data = await readFileAsDataUrl(file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          fileData: base64Data,
+          mediaType: file.type.startsWith('video/') ? 'video' : 'image',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setNewProdImage(data.url);
+        setImageUploadSuccess(`Uploaded: ${file.name}`);
+      } else {
+        // Direct dataURL fallback if server mock
+        setNewProdImage(base64Data);
+        setImageUploadSuccess(`Loaded: ${file.name}`);
+      }
+    } catch {
+      // Fallback
+      const base64Data = await readFileAsDataUrl(file);
+      setNewProdImage(base64Data);
+      setImageUploadSuccess(`Loaded: ${file.name}`);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingVideo(true);
+    setVideoUploadSuccess('');
+    try {
+      const base64Data = await readFileAsDataUrl(file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          fileData: base64Data,
+          mediaType: 'video',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setNewVideoUrl(data.url);
+        setVideoUploadSuccess(`Uploaded: ${file.name}`);
+        if (!newVideoTitle) {
+          setNewVideoTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+        }
+      } else {
+        setNewVideoUrl(base64Data);
+        setVideoUploadSuccess(`Loaded: ${file.name}`);
+        if (!newVideoTitle) {
+          setNewVideoTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+        }
+      }
+    } catch {
+      const base64Data = await readFileAsDataUrl(file);
+      setNewVideoUrl(base64Data);
+      setVideoUploadSuccess(`Loaded: ${file.name}`);
+      if (!newVideoTitle) {
+        setNewVideoTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+      }
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,23 +206,29 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setNewProdPrice('');
     setNewProdImage('');
     setNewProdDesc('');
+    setImageUploadSuccess('');
   };
 
   const handleCreateVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newVideoId || !newVideoTitle) return;
+    if (!newVideoTitle) return;
+    if (newVideoType === 'youtube' && !newVideoId) return;
+    if (newVideoType === 'local' && !newVideoUrl) return;
 
     await onAddVideo({
-      youtubeId: newVideoId,
+      youtubeId: newVideoType === 'youtube' ? newVideoId : '',
+      videoUrl: newVideoType === 'local' ? newVideoUrl : '',
       title: newVideoTitle,
       category: newVideoCategory,
       description: newVideoDesc || 'Official Tahmeed media broadcast.',
-      duration: '12:00',
+      duration: '10:00',
     });
 
     setNewVideoId('');
+    setNewVideoUrl('');
     setNewVideoTitle('');
     setNewVideoDesc('');
+    setVideoUploadSuccess('');
   };
 
   const handleSaveSeo = async (e: React.FormEvent) => {
@@ -289,14 +397,48 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-stone-600 mb-1">Image URL</label>
-                  <input
-                    type="url"
-                    value={newProdImage}
-                    onChange={(e) => setNewProdImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
-                  />
+                  <label className="block text-[11px] font-medium text-stone-600 mb-1">
+                    Product Image (Upload Local File or Enter URL)
+                  </label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer flex items-center justify-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs px-3 py-2 rounded-lg border border-dashed border-stone-300 transition">
+                        {isUploadingImage ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-stone-600" />
+                            <span>Uploading local file...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5 text-stone-600" />
+                            <span>Upload Local Image (PNG/JPG)</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="hidden"
+                          disabled={isUploadingImage}
+                        />
+                      </label>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={newProdImage}
+                      onChange={(e) => setNewProdImage(e.target.value)}
+                      placeholder="Or enter image URL (https://...)"
+                      className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
+                    />
+
+                    {imageUploadSuccess && (
+                      <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        <span>{imageUploadSuccess}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -458,26 +600,107 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           </div>
         )}
 
-        {/* Tab 3: YouTube Videos */}
+        {/* Tab 3: Videos (Local Video Upload & YouTube Embed) */}
         {activeTab === 'videos' && (
           <div className="space-y-6">
             <form onSubmit={handleCreateVideo} className="bg-stone-50 p-4 rounded-xl border border-stone-200">
-              <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider mb-3 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5 text-rose-600" />
-                <span>Embed New YouTube Video</span>
-              </h4>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Film className="w-4 h-4 text-rose-600" />
+                  <span>Add Video: Upload Local Media or YouTube</span>
+                </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
+                <div className="flex items-center gap-1 bg-stone-200/70 p-0.5 rounded-lg text-[11px] font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setNewVideoType('local')}
+                    className={`px-2.5 py-1 rounded-md transition ${
+                      newVideoType === 'local'
+                        ? 'bg-white text-stone-950 shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    Upload Local Video (MP4)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewVideoType('youtube')}
+                    className={`px-2.5 py-1 rounded-md transition ${
+                      newVideoType === 'youtube'
+                        ? 'bg-white text-stone-950 shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    YouTube ID
+                  </button>
+                </div>
+              </div>
+
+              {newVideoType === 'local' ? (
+                <div className="p-3 bg-white rounded-xl border border-stone-200 mb-3 space-y-2">
+                  <label className="block text-[11px] font-medium text-stone-700">
+                    Upload Video File from Computer (MP4, WebM)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs px-4 py-2.5 rounded-lg border border-dashed border-stone-300 transition">
+                      {isUploadingVideo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-stone-600" />
+                          <span>Uploading & encoding video to server...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 text-stone-600" />
+                          <span>Select Video File from Local Drive</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/ogg"
+                        onChange={handleVideoFileChange}
+                        className="hidden"
+                        disabled={isUploadingVideo}
+                      />
+                    </label>
+                  </div>
+
+                  {newVideoUrl && (
+                    <div className="text-[11px] text-stone-600 font-mono bg-stone-50 p-2 rounded border border-stone-200 break-all">
+                      Video Source: {newVideoUrl.slice(0, 80)}...
+                    </div>
+                  )}
+
+                  {videoUploadSuccess && (
+                    <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{videoUploadSuccess}</span>
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="mb-3">
                   <label className="block text-[11px] font-medium text-stone-600 mb-1">
                     YouTube Video ID * (e.g. dQw4w9WgXcQ)
                   </label>
                   <input
                     type="text"
-                    required
                     value={newVideoId}
                     onChange={(e) => setNewVideoId(e.target.value)}
                     placeholder="dQw4w9WgXcQ"
+                    className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-stone-600 mb-1">Video Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newVideoTitle}
+                    onChange={(e) => setNewVideoTitle(e.target.value)}
+                    placeholder="e.g. Studio Sessions: Track 4 Breakdown"
                     className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
                   />
                 </div>
@@ -488,22 +711,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     type="text"
                     value={newVideoCategory}
                     onChange={(e) => setNewVideoCategory(e.target.value)}
-                    placeholder="Keynotes / Tutorials"
+                    placeholder="Music Video / Live / Tutorial"
                     className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="mt-3">
-                <label className="block text-[11px] font-medium text-stone-600 mb-1">Video Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={newVideoTitle}
-                  onChange={(e) => setNewVideoTitle(e.target.value)}
-                  placeholder="Official Walkthrough: Tahmeed Systems"
-                  className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
-                />
               </div>
 
               <div className="mt-3">
@@ -512,16 +723,17 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   type="text"
                   value={newVideoDesc}
                   onChange={(e) => setNewVideoDesc(e.target.value)}
-                  placeholder="Summary of video topics..."
+                  placeholder="Summary of video topics and artist commentary..."
                   className="w-full text-xs bg-white border border-stone-300 rounded-lg p-2 text-stone-900 focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="mt-3 bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs px-4 py-2 rounded-lg transition"
+                disabled={isUploadingVideo || (newVideoType === 'local' && !newVideoUrl) || (newVideoType === 'youtube' && !newVideoId)}
+                className="mt-3 bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs px-4 py-2 rounded-lg transition disabled:opacity-50"
               >
-                Add Video to Media Hub
+                {newVideoType === 'local' ? 'Publish Uploaded Video' : 'Embed YouTube Video'}
               </button>
             </form>
 
@@ -535,7 +747,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     <div>
                       <span className="font-bold text-stone-900 block">{v.title}</span>
                       <span className="text-stone-500 font-mono text-[11px]">
-                        ID: {v.youtubeId} • Category: {v.category}
+                        {v.videoUrl ? (
+                          <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded mr-1">Local MP4</span>
+                        ) : (
+                          <span className="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded mr-1">YouTube ({v.youtubeId})</span>
+                        )}
+                        Category: {v.category}
                       </span>
                     </div>
                     <button

@@ -74,14 +74,26 @@ export const MediaSection: React.FC<MediaSectionProps> = ({ videos }) => {
           
           {/* Main Active Video Player (2 Cols) */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="relative aspect-video bg-black rounded-3xl overflow-hidden border border-stone-300/80 shadow-xl">
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${activeVideo.youtubeId}?autoplay=0&rel=0&modestbranding=1`}
-                title={activeVideo.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full h-full border-0"
-              ></iframe>
+            <div className="relative aspect-video bg-black rounded-3xl overflow-hidden border border-stone-300/80 shadow-xl flex items-center justify-center">
+              {activeVideo.videoUrl ? (
+                <video
+                  key={activeVideo.videoUrl}
+                  src={activeVideo.videoUrl}
+                  controls
+                  playsInline
+                  className="w-full h-full object-cover"
+                >
+                  Your browser does not support HTML5 video streaming.
+                </video>
+              ) : (
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${activeVideo.youtubeId || 'dQw4w9WgXcQ'}?autoplay=0&rel=0&modestbranding=1`}
+                  title={activeVideo.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                ></iframe>
+              )}
             </div>
 
             {/* Video Metadata Card (Pure Light Mode) */}
@@ -156,15 +168,22 @@ export const MediaSection: React.FC<MediaSectionProps> = ({ videos }) => {
                     }`}
                   >
                     {/* Thumbnail */}
-                    <div className="w-24 h-16 bg-stone-100 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center border border-stone-200">
-                      <img
-                        src={`https://img.youtube.com/vi/${vid.youtubeId}/hqdefault.jpg`}
-                        alt={vid.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
+                    <div className="w-24 h-16 bg-stone-900 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center border border-stone-200">
+                      {vid.youtubeId ? (
+                        <img
+                          src={`https://img.youtube.com/vi/${vid.youtubeId}/hqdefault.jpg`}
+                          alt={vid.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-stone-800 to-stone-950 flex flex-col items-center justify-center text-stone-300">
+                          <VideoIcon className="w-5 h-5 text-emerald-400 opacity-90" />
+                          <span className="text-[8px] font-mono mt-0.5 text-stone-400">LOCAL MP4</span>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isActive ? 'bg-emerald-600 text-white' : 'bg-white/90 text-stone-900'}`}>
                           <Play className="w-3 h-3 fill-current ml-0.5" />

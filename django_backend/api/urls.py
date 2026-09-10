@@ -2,7 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     ProductViewSet, ServiceViewSet, BookingViewSet, 
-    OrderViewSet, YouTubeVideoViewSet, ContactMessageViewSet, seo_config_view
+    OrderViewSet, YouTubeVideoViewSet, ContactMessageViewSet, 
+    seo_config_view, media_upload_view
 )
 
 router = DefaultRouter()
@@ -16,4 +17,5 @@ router.register(r'contacts', ContactMessageViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('seo/', seo_config_view, name='seo-config'),
+    path('upload/', media_upload_view, name='media-upload'),
 ]

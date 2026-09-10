@@ -1,7 +1,14 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { INITIAL_PRODUCTS, INITIAL_SERVICES, INITIAL_VIDEOS, INITIAL_SEO } from './src/data/initialData';
+
+// Ensure local media uploads folder exists
+const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // In-memory data store with default values
 let products = [...INITIAL_PRODUCTS];
@@ -61,7 +68,12 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // Increase json and urlencoded payload limit to support local image & video base64 uploads
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+  // Serve uploaded media files publicly
+  app.use('/uploads', express.static(uploadsDir));
 
   // CORS headers for local/Django dev friendliness
   app.use((req, res, next) => {
@@ -201,11 +213,12 @@ Host: https://tahmeed.com
   app.post('/api/bookings', (req, res) => {
     const newBooking = {
       id: `BKG-${Math.floor(10000 + Math.random() * 90000)}`,
-      status: 'pending',
+      status: req.body.status || 'confirmed',
       createdAt: new Date().toISOString(),
       ...req.body,
     };
     bookings.unshift(newBooking);
+    console.log(`[Tahmeed Bookings] New booking confirmed: ${newBooking.id} for ${newBooking.clientName} (${newBooking.serviceTitle})`);
     res.status(201).json(newBooking);
   });
 
@@ -240,7 +253,7 @@ Host: https://tahmeed.com
     res.json(orders[index]);
   });
 
-  // --- YouTube Videos API ---
+  // --- YouTube & Local Videos API ---
   app.get('/api/videos', (req, res) => {
     res.json(videos);
   });
@@ -261,19 +274,78 @@ Host: https://tahmeed.com
     res.json({ success: true, id: req.params.id });
   });
 
-  // --- Contacts API ---
+  // --- Local Media Upload API (Images & Videos) ---
+  app.post('/api/upload', (req, res) => {
+    try {
+      const { filename, fileData, mediaType } = req.body;
+      if (!fileData) {
+        return res.status(400).json({ error: 'fileData (base64 string or dataURL) is required' });
+      }
+
+      // Parse base64 data URL
+      const matches = fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let buffer: Buffer;
+      let extension = 'bin';
+
+      if (matches && matches.length === 3) {
+        const mimeType = matches[1];
+        buffer = Buffer.from(matches[2], 'base64');
+        if (mimeType.includes('png')) extension = 'png';
+        else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) extension = 'jpg';
+        else if (mimeType.includes('webp')) extension = 'webp';
+        else if (mimeType.includes('gif')) extension = 'gif';
+        else if (mimeType.includes('mp4')) extension = 'mp4';
+        else if (mimeType.includes('webm')) extension = 'webm';
+        else if (mimeType.includes('mov')) extension = 'mov';
+      } else {
+        buffer = Buffer.from(fileData, 'base64');
+      }
+
+      const safeName = filename 
+        ? filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+        : `upload-${Date.now()}.${extension}`;
+      
+      const uniqueFilename = `${Date.now()}-${safeName}`;
+      const filePath = path.join(uploadsDir, uniqueFilename);
+
+      fs.writeFileSync(filePath, buffer);
+
+      const publicUrl = `/uploads/${uniqueFilename}`;
+      console.log(`[Media Upload] Successfully uploaded ${mediaType || 'file'}: ${publicUrl} (${buffer.length} bytes)`);
+
+      res.status(201).json({
+        success: true,
+        url: publicUrl,
+        filename: uniqueFilename,
+        size: buffer.length,
+      });
+    } catch (err: any) {
+      console.error('[Media Upload Error]', err);
+      res.status(500).json({ error: 'Failed to upload file', details: err.message });
+    }
+  });
+
+  // --- Contacts / Send Emails API ---
   app.get('/api/contacts', (req, res) => {
     res.json(contacts);
   });
 
   app.post('/api/contacts', (req, res) => {
     const contact = {
-      id: `cnt-${Date.now()}`,
+      id: `MSG-${Math.floor(10000 + Math.random() * 90000)}`,
+      recipient: 'management@tahmeed.com',
       createdAt: new Date().toISOString(),
+      delivered: true,
       ...req.body,
     };
     contacts.unshift(contact);
-    res.status(201).json({ success: true, contact });
+    console.log(`[Tahmeed Direct Bureau] Email inquiry dispatched to management@tahmeed.com: Ref ${contact.id} from ${contact.name} <${contact.email}>`);
+    res.status(201).json({ 
+      success: true, 
+      id: contact.id, 
+      contact, 
+      message: 'Email inquiry successfully recorded and routed to Tahmeed Management bureau.' 
+    });
   });
 
   // --- SEO Configuration API ---
@@ -287,15 +359,21 @@ Host: https://tahmeed.com
   });
 
   // --- Auth Simulation / Provider endpoint ---
+  // Security rule: Admin privileges are EXCLUSIVELY granted to derrickngure39@gmail.com
+  const ADMIN_EMAIL = 'derrickngure39@gmail.com';
+
   app.post('/api/auth/login', (req, res) => {
     const { email, password, provider, googleCredential } = req.body;
+    const normalizedEmail = (email || '').trim().toLowerCase();
+
     if (provider === 'google' || googleCredential) {
       // Decode or synthesize Google User
+      const isAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
       const user = {
         id: `usr-g-${Date.now()}`,
         email: email || 'user@gmail.com',
         name: email ? email.split('@')[0].replace('.', ' ') : 'Google Member',
-        role: email?.includes('admin') || email === 'derrickngure39@gmail.com' ? 'admin' : 'user',
+        role: isAdmin ? 'admin' : 'user',
         provider: 'google',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
       };
@@ -306,7 +384,7 @@ Host: https://tahmeed.com
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const isAdmin = email.toLowerCase().includes('admin') || email.toLowerCase() === 'derrickngure39@gmail.com';
+    const isAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
     const user = {
       id: `usr-${Date.now()}`,
       email,

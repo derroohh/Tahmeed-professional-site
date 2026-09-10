@@ -15,7 +15,8 @@ class Product(models.Model):
     category = models.CharField(max_length=32, choices=CATEGORY_CHOICES, default='apparel')
     rating = models.FloatField(default=5.0)
     review_count = models.PositiveIntegerField(default=0)
-    image = models.URLField(max_length=500)
+    image = models.CharField(max_length=500, blank=True, default='')
+    local_image = models.FileField(upload_to='uploads/products/', blank=True, null=True)
     in_stock = models.BooleanField(default=True)
     stock_count = models.PositiveIntegerField(default=10)
     featured = models.BooleanField(default=False)
@@ -89,7 +90,9 @@ class Order(models.Model):
         return f"Order {self.order_number} by {self.customer_name}"
 
 class YouTubeVideo(models.Model):
-    youtube_id = models.CharField(max_length=32)
+    youtube_id = models.CharField(max_length=64, blank=True, default='')
+    video_file = models.FileField(upload_to='uploads/videos/', blank=True, null=True)
+    video_url = models.CharField(max_length=500, blank=True, default='')
     title = models.CharField(max_length=255)
     description = models.TextField()
     category = models.CharField(max_length=100)
