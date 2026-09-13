@@ -29,7 +29,7 @@ export const MediaSection: React.FC<MediaSectionProps> = ({ videos }) => {
   const [copiedShare, setCopiedShare] = useState(false);
 
   const handleShare = () => {
-    const url = `https://www.youtube.com/watch?v=${activeVideo.youtubeId}`;
+    const url = activeVideo.videoUrl || `https://www.youtube.com/watch?v=${activeVideo.youtubeId}`;
     navigator.clipboard.writeText(url);
     setCopiedShare(true);
     setTimeout(() => setCopiedShare(false), 2000);
