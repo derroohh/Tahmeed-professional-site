@@ -60,7 +60,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError('');
     setIsLoading(true);
     try {
-      await onLogin('user.tahmeed@gmail.com', '', 'google');
+      const ok = await onLogin('', '', 'google');
+      if (ok) {
+        onClose();
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

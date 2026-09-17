@@ -2,7 +2,29 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import { INITIAL_PRODUCTS, INITIAL_SERVICES, INITIAL_VIDEOS, INITIAL_SEO } from './src/data/initialData';
+import { optionalAuth, requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { getOrCreateUser } from './src/db/users.ts';
+import {
+  getProducts,
+  insertProduct,
+  updateProduct,
+  deleteProduct,
+  getServices,
+  insertService,
+  updateService,
+  deleteService,
+  getVideos,
+  insertVideo,
+  deleteVideo,
+  getBookings,
+  insertBooking,
+  updateBooking,
+  getOrders,
+  insertOrder,
+  updateOrder,
+  getSeoSettings,
+  updateSeoSettings,
+} from './src/db/repo.ts';
 
 // Ensure local media uploads folder exists
 const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
@@ -10,59 +32,8 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// In-memory data store with default values
-let products = [...INITIAL_PRODUCTS];
-let services = [...INITIAL_SERVICES];
-let videos = [...INITIAL_VIDEOS];
-let seoConfig = { ...INITIAL_SEO };
-
-let bookings: any[] = [
-  {
-    id: 'BKG-84920',
-    serviceId: 'srv-1',
-    serviceTitle: 'Live Festival & Headline Concert Performance',
-    clientName: 'Julian Rivers',
-    clientEmail: 'julian@solsticefest.com',
-    clientPhone: '+1 (555) 382-9910',
-    date: '2026-09-18',
-    timeSlot: '19:00 - 20:30 UTC',
-    notes: 'Mainstage festival closing set performance arrangement.',
-    status: 'confirmed',
-    totalPrice: 3500,
-    createdAt: new Date().toISOString(),
-  }
-];
-
-let orders: any[] = [
-  {
-    id: 'ORD-77102',
-    items: [
-      {
-        productId: 'prod-1',
-        productTitle: 'Tahmeed World Tour 2026 Heavyweight Hoodie',
-        price: 115.00,
-        quantity: 1,
-        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80',
-      }
-    ],
-    totalAmount: 115.00,
-    customerName: 'Marcus Vance',
-    customerEmail: 'm.vance@musicfans.io',
-    shippingAddress: {
-      street: '742 Sunset Boulevard',
-      city: 'Los Angeles',
-      state: 'CA',
-      postalCode: '90028',
-      country: 'United States'
-    },
-    paymentMethod: 'card',
-    status: 'shipped',
-    trackingNumber: 'THM-US-9938217',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  }
-];
-
 let contacts: any[] = [];
+const ADMIN_EMAIL = 'derrickngure39@gmail.com';
 
 async function startServer() {
   const app = express();
@@ -75,7 +46,7 @@ async function startServer() {
   // Serve uploaded media files publicly
   app.use('/uploads', express.static(uploadsDir));
 
-  // CORS headers for local/Django dev friendliness
+  // CORS headers
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -90,9 +61,10 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
-      service: 'tahmeed.com API engine',
+      service: 'tahmeed.com Cloud SQL & Firebase API engine',
       timestamp: new Date().toISOString(),
-      djangoReady: true,
+      database: 'Cloud SQL (PostgreSQL)',
+      region: 'europe-west2',
     });
   });
 
@@ -150,131 +122,191 @@ Host: https://tahmeed.com
     res.send(xml);
   });
 
-  // --- Products API ---
-  app.get('/api/products', (req, res) => {
-    res.json(products);
+  // --- Products API (Backed by Cloud SQL) ---
+  app.get('/api/products', async (req, res) => {
+    try {
+      const prods = await getProducts();
+      res.json(prods);
+    } catch (err: any) {
+      console.error('Failed to fetch products:', err);
+      res.status(500).json({ error: 'Failed to fetch products' });
+    }
   });
 
-  app.post('/api/products', (req, res) => {
-    const newProduct = {
-      id: `prod-${Date.now()}`,
-      sku: req.body.sku || `THM-${Math.floor(1000 + Math.random() * 9000)}`,
-      rating: 5.0,
-      reviewCount: 1,
-      ...req.body,
-    };
-    products.unshift(newProduct);
-    res.status(201).json(newProduct);
+  app.post('/api/products', async (req, res) => {
+    try {
+      const created = await insertProduct(req.body);
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error('Failed to create product:', err);
+      res.status(500).json({ error: 'Failed to create product' });
+    }
   });
 
-  app.put('/api/products/:id', (req, res) => {
-    const index = products.findIndex(p => p.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'Product not found' });
-    products[index] = { ...products[index], ...req.body };
-    res.json(products[index]);
+  app.put('/api/products/:id', async (req, res) => {
+    try {
+      const updated = await updateProduct(req.params.id, req.body);
+      res.json(updated);
+    } catch (err: any) {
+      console.error('Failed to update product:', err);
+      res.status(500).json({ error: 'Failed to update product' });
+    }
   });
 
-  app.delete('/api/products/:id', (req, res) => {
-    products = products.filter(p => p.id !== req.params.id);
-    res.json({ success: true, id: req.params.id });
+  app.delete('/api/products/:id', async (req, res) => {
+    try {
+      const result = await deleteProduct(req.params.id);
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to delete product:', err);
+      res.status(500).json({ error: 'Failed to delete product' });
+    }
   });
 
-  // --- Services API ---
-  app.get('/api/services', (req, res) => {
-    res.json(services);
+  // --- Services API (Backed by Cloud SQL) ---
+  app.get('/api/services', async (req, res) => {
+    try {
+      const srvs = await getServices();
+      res.json(srvs);
+    } catch (err: any) {
+      console.error('Failed to fetch services:', err);
+      res.status(500).json({ error: 'Failed to fetch services' });
+    }
   });
 
-  app.post('/api/services', (req, res) => {
-    const newService = {
-      id: `srv-${Date.now()}`,
-      ...req.body,
-    };
-    services.unshift(newService);
-    res.status(201).json(newService);
+  app.post('/api/services', async (req, res) => {
+    try {
+      const created = await insertService(req.body);
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error('Failed to create service:', err);
+      res.status(500).json({ error: 'Failed to create service' });
+    }
   });
 
-  app.put('/api/services/:id', (req, res) => {
-    const index = services.findIndex(s => s.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'Service not found' });
-    services[index] = { ...services[index], ...req.body };
-    res.json(services[index]);
+  app.put('/api/services/:id', async (req, res) => {
+    try {
+      const updated = await updateService(req.params.id, req.body);
+      res.json(updated);
+    } catch (err: any) {
+      console.error('Failed to update service:', err);
+      res.status(500).json({ error: 'Failed to update service' });
+    }
   });
 
-  app.delete('/api/services/:id', (req, res) => {
-    services = services.filter(s => s.id !== req.params.id);
-    res.json({ success: true, id: req.params.id });
+  app.delete('/api/services/:id', async (req, res) => {
+    try {
+      const result = await deleteService(req.params.id);
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to delete service:', err);
+      res.status(500).json({ error: 'Failed to delete service' });
+    }
   });
 
-  // --- Bookings API ---
-  app.get('/api/bookings', (req, res) => {
-    res.json(bookings);
+  // --- Bookings API (Backed by Cloud SQL) ---
+  app.get('/api/bookings', async (req, res) => {
+    try {
+      const bkgs = await getBookings();
+      res.json(bkgs);
+    } catch (err: any) {
+      console.error('Failed to fetch bookings:', err);
+      res.status(500).json({ error: 'Failed to fetch bookings' });
+    }
   });
 
-  app.post('/api/bookings', (req, res) => {
-    const newBooking = {
-      id: `BKG-${Math.floor(10000 + Math.random() * 90000)}`,
-      status: req.body.status || 'confirmed',
-      createdAt: new Date().toISOString(),
-      ...req.body,
-    };
-    bookings.unshift(newBooking);
-    console.log(`[Tahmeed Bookings] New booking confirmed: ${newBooking.id} for ${newBooking.clientName} (${newBooking.serviceTitle})`);
-    res.status(201).json(newBooking);
+  app.post('/api/bookings', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const bookingData = {
+        ...req.body,
+        userId: req.user?.uid || null,
+      };
+      const created = await insertBooking(bookingData);
+      console.log(`[Tahmeed Bookings] New booking confirmed: ${created.id} for ${created.clientName}`);
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error('Failed to create booking:', err);
+      res.status(500).json({ error: 'Failed to create booking' });
+    }
   });
 
-  app.patch('/api/bookings/:id', (req, res) => {
-    const index = bookings.findIndex(b => b.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'Booking not found' });
-    bookings[index] = { ...bookings[index], ...req.body };
-    res.json(bookings[index]);
+  app.patch('/api/bookings/:id', async (req, res) => {
+    try {
+      const updated = await updateBooking(req.params.id, req.body);
+      res.json(updated);
+    } catch (err: any) {
+      console.error('Failed to update booking:', err);
+      res.status(500).json({ error: 'Failed to update booking' });
+    }
   });
 
-  // --- Orders API (Storefront purchases) ---
-  app.get('/api/orders', (req, res) => {
-    res.json(orders);
+  // --- Orders API (Backed by Cloud SQL) ---
+  app.get('/api/orders', async (req, res) => {
+    try {
+      const ords = await getOrders();
+      res.json(ords);
+    } catch (err: any) {
+      console.error('Failed to fetch orders:', err);
+      res.status(500).json({ error: 'Failed to fetch orders' });
+    }
   });
 
-  app.post('/api/orders', (req, res) => {
-    const newOrder = {
-      id: `ORD-${Math.floor(10000 + Math.random() * 90000)}`,
-      trackingNumber: `THM-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-      status: 'processing',
-      createdAt: new Date().toISOString(),
-      ...req.body,
-    };
-    orders.unshift(newOrder);
-    res.status(201).json(newOrder);
+  app.post('/api/orders', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const orderData = {
+        ...req.body,
+        userId: req.user?.uid || null,
+      };
+      const created = await insertOrder(orderData);
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error('Failed to create order:', err);
+      res.status(500).json({ error: 'Failed to create order' });
+    }
   });
 
-  app.patch('/api/orders/:id', (req, res) => {
-    const index = orders.findIndex(o => o.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'Order not found' });
-    orders[index] = { ...orders[index], ...req.body };
-    res.json(orders[index]);
+  app.patch('/api/orders/:id', async (req, res) => {
+    try {
+      const updated = await updateOrder(req.params.id, req.body);
+      res.json(updated);
+    } catch (err: any) {
+      console.error('Failed to update order:', err);
+      res.status(500).json({ error: 'Failed to update order' });
+    }
   });
 
-  // --- YouTube & Local Videos API ---
-  app.get('/api/videos', (req, res) => {
-    res.json(videos);
+  // --- YouTube & Videos API (Backed by Cloud SQL) ---
+  app.get('/api/videos', async (req, res) => {
+    try {
+      const vids = await getVideos();
+      res.json(vids);
+    } catch (err: any) {
+      console.error('Failed to fetch videos:', err);
+      res.status(500).json({ error: 'Failed to fetch videos' });
+    }
   });
 
-  app.post('/api/videos', (req, res) => {
-    const newVideo = {
-      id: `vid-${Date.now()}`,
-      views: '1.2K',
-      publishedDate: 'Just now',
-      ...req.body,
-    };
-    videos.unshift(newVideo);
-    res.status(201).json(newVideo);
+  app.post('/api/videos', async (req, res) => {
+    try {
+      const created = await insertVideo(req.body);
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error('Failed to create video:', err);
+      res.status(500).json({ error: 'Failed to create video' });
+    }
   });
 
-  app.delete('/api/videos/:id', (req, res) => {
-    videos = videos.filter(v => v.id !== req.params.id);
-    res.json({ success: true, id: req.params.id });
+  app.delete('/api/videos/:id', async (req, res) => {
+    try {
+      const result = await deleteVideo(req.params.id);
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to delete video:', err);
+      res.status(500).json({ error: 'Failed to delete video' });
+    }
   });
 
-  // --- Local Media Upload API (Images & Videos) ---
+  // --- Local Media Upload API ---
   app.post('/api/upload', (req, res) => {
     try {
       const { filename, fileData, mediaType } = req.body;
@@ -282,7 +314,6 @@ Host: https://tahmeed.com
         return res.status(400).json({ error: 'fileData (base64 string or dataURL) is required' });
       }
 
-      // Parse base64 data URL
       const matches = fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
       let buffer: Buffer;
       let extension = 'bin';
@@ -325,7 +356,7 @@ Host: https://tahmeed.com
     }
   });
 
-  // --- Contacts / Send Emails API ---
+  // --- Contacts / Bureau API ---
   app.get('/api/contacts', (req, res) => {
     res.json(contacts);
   });
@@ -339,7 +370,7 @@ Host: https://tahmeed.com
       ...req.body,
     };
     contacts.unshift(contact);
-    console.log(`[Tahmeed Direct Bureau] Email inquiry dispatched to management@tahmeed.com: Ref ${contact.id} from ${contact.name} <${contact.email}>`);
+    console.log(`[Tahmeed Direct Bureau] Email inquiry dispatched to management@tahmeed.com: Ref ${contact.id}`);
     res.status(201).json({ 
       success: true, 
       id: contact.id, 
@@ -348,26 +379,54 @@ Host: https://tahmeed.com
     });
   });
 
-  // --- SEO Configuration API ---
-  app.get('/api/seo', (req, res) => {
-    res.json(seoConfig);
+  // --- SEO Configuration API (Backed by Cloud SQL) ---
+  app.get('/api/seo', async (req, res) => {
+    try {
+      const config = await getSeoSettings();
+      res.json(config);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch SEO settings' });
+    }
   });
 
-  app.put('/api/seo', (req, res) => {
-    seoConfig = { ...seoConfig, ...req.body };
-    res.json(seoConfig);
+  app.put('/api/seo', async (req, res) => {
+    try {
+      const updated = await updateSeoSettings(req.body);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to update SEO settings' });
+    }
   });
 
-  // --- Auth Simulation / Provider endpoint ---
-  // Security rule: Admin privileges are EXCLUSIVELY granted to derrickngure39@gmail.com
-  const ADMIN_EMAIL = 'derrickngure39@gmail.com';
+  // --- Firebase User Profile Sync ---
+  app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uid = req.user?.uid;
+      const email = req.user?.email;
+      if (!uid || !email) {
+        return res.status(400).json({ error: 'Missing UID or email in token' });
+      }
+      const user = await getOrCreateUser(uid, email, req.body.displayName, req.body.photoUrl);
+      const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      res.json({
+        success: true,
+        user: {
+          ...user,
+          role: isAdmin ? 'admin' : (user.role || 'fan'),
+        }
+      });
+    } catch (err: any) {
+      console.error('Failed to sync authenticated user:', err);
+      res.status(500).json({ error: 'Failed to sync user profile' });
+    }
+  });
 
+  // --- Legacy & Fallback Auth login endpoint ---
   app.post('/api/auth/login', (req, res) => {
     const { email, password, provider, googleCredential } = req.body;
     const normalizedEmail = (email || '').trim().toLowerCase();
 
     if (provider === 'google' || googleCredential) {
-      // Decode or synthesize Google User
       const isAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
       const user = {
         id: `usr-g-${Date.now()}`,

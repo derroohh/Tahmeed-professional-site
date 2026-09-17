@@ -30,6 +30,8 @@ import {
   INITIAL_VIDEOS, 
   INITIAL_SEO 
 } from './data/initialData';
+import { auth, googleAuthProvider } from './lib/firebase';
+import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
   // Products, Services, Videos & SEO
@@ -300,13 +302,58 @@ export default function App() {
     }
   };
 
-  // Authentication
+  // Authentication with Firebase & Cloud SQL
   const handleLogin = async (
     email: string,
     password?: string,
     provider: 'email' | 'google' = 'email'
   ): Promise<boolean> => {
     try {
+      if (provider === 'google') {
+        const cred = await signInWithPopup(auth, googleAuthProvider);
+        const token = await cred.user.getIdToken();
+        const isAdmin = (cred.user.email || '').toLowerCase() === 'derrickngure39@gmail.com';
+
+        // Sync with Cloud SQL backend
+        try {
+          const syncRes = await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              displayName: cred.user.displayName,
+              photoUrl: cred.user.photoURL,
+            }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            setUser({
+              id: cred.user.uid,
+              email: cred.user.email || '',
+              name: cred.user.displayName || (cred.user.email?.split('@')[0] ?? 'Fan'),
+              role: isAdmin ? 'admin' : (syncData.user?.role || 'user'),
+              provider: 'google',
+              avatar: cred.user.photoURL || undefined,
+            });
+            return true;
+          }
+        } catch (e) {
+          console.warn('Sync to Cloud SQL returned error:', e);
+        }
+
+        setUser({
+          id: cred.user.uid,
+          email: cred.user.email || '',
+          name: cred.user.displayName || (cred.user.email?.split('@')[0] ?? 'Fan'),
+          role: isAdmin ? 'admin' : 'user',
+          provider: 'google',
+          avatar: cred.user.photoURL || undefined,
+        });
+        return true;
+      }
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,7 +365,9 @@ export default function App() {
         setUser(data.user);
         return true;
       }
-    } catch {}
+    } catch (err) {
+      console.error('Login error:', err);
+    }
 
     // Fallback user object
     const isAdmin = email.toLowerCase().includes('admin') || email.toLowerCase() === 'derrickngure39@gmail.com';
@@ -333,7 +382,10 @@ export default function App() {
     return true;
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch {}
     setUser(null);
   };
 
