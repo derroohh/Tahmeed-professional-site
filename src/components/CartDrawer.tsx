@@ -4,13 +4,15 @@ import {
   Trash2, 
   Plus, 
   Minus, 
-  ArrowRight, 
   ShoppingBag, 
+  ArrowRight, 
   ShieldCheck, 
-  Tag, 
-  Truck 
+  Tag,
+  Truck,
+  Smartphone
 } from 'lucide-react';
 import { CartItem } from '../types';
+import { KES_PER_USD } from '../utils/currency';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -38,50 +40,52 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   const discountAmount = subtotal * appliedDiscountRate;
-  const shippingFee = subtotal > 100 || subtotal === 0 ? 0 : 15;
+  const shippingFee = subtotal >= 100 || subtotal === 0 ? 0 : 15;
   const estimatedTax = (subtotal - discountAmount) * 0.08;
-  const total = subtotal - discountAmount + shippingFee + estimatedTax;
+  const total = Math.max(0, subtotal - discountAmount + shippingFee + estimatedTax);
+  const totalKES = Math.round(total * KES_PER_USD);
 
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
-    setPromoError('');
-    setPromoSuccess('');
+    const code = promoCode.trim().toUpperCase();
 
-    if (promoCode.trim().toUpperCase() === 'TAHMEED10') {
-      setAppliedDiscountRate(0.10);
-      setPromoSuccess('Promo code applied: 10% Off!');
-    } else if (promoCode.trim().toUpperCase() === 'VIP20') {
-      setAppliedDiscountRate(0.20);
-      setPromoSuccess('VIP Discount applied: 20% Off!');
+    if (code === 'NAIROBI254' || code === 'TAHMEED10') {
+      setAppliedDiscountRate(0.1);
+      setPromoSuccess('10% Kenyan Fan discount applied successfully!');
+      setPromoError('');
+    } else if (code === 'SOLFEST20' || code === 'VIP20') {
+      setAppliedDiscountRate(0.2);
+      setPromoSuccess('20% VIP Festival passholder discount applied!');
+      setPromoError('');
     } else {
-      setPromoError('Invalid coupon code. Try TAHMEED10');
+      setPromoError('Invalid coupon code. Try NAIROBI254 or TAHMEED10');
+      setPromoSuccess('');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden animate-fadeIn">
       {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="absolute inset-0 bg-stone-950/40 backdrop-blur-xs transition-opacity"
+      <div 
+        onClick={onClose} 
+        className="absolute inset-0 bg-stone-950/40 backdrop-blur-xs transition-opacity" 
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col border-l border-stone-200">
           
-          {/* Apple-Style Light Header */}
-          <div className="p-5 sm:p-6 bg-white text-stone-900 border-b border-stone-200 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <ShoppingBag className="w-5 h-5 text-stone-900" />
-              <h2 className="text-lg font-bold tracking-tight text-[#1d1d1f]">Shopping Bag</h2>
-              <span className="text-xs bg-stone-100 text-stone-700 px-2.5 py-0.5 rounded-full font-mono font-medium">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)} items
-              </span>
+          {/* Drawer Header */}
+          <div className="p-6 border-b border-stone-200 flex items-center justify-between bg-[#fbfbfd]">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-stone-800" />
+              <h3 className="font-extrabold text-base text-stone-900 tracking-tight">
+                Review Your Merch Bag ({cart.reduce((acc, i) => acc + i.quantity, 0)})
+              </h3>
             </div>
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-100 transition"
-              aria-label="Close cart"
+              className="p-1.5 rounded-full hover:bg-stone-200/80 text-stone-500 hover:text-stone-900 transition"
+              aria-label="Close cart drawer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -92,16 +96,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             {subtotal >= 100 ? (
               <div className="flex items-center gap-2 text-emerald-700 font-semibold">
                 <Truck className="w-4 h-4" />
-                <span>You unlocked Complimentary Express Delivery!</span>
+                <span>You unlocked Complimentary Doorstep Delivery across Kenya!</span>
               </div>
             ) : (
               <div>
                 <span className="text-stone-600">
-                  Add <strong>${(100 - subtotal).toFixed(2)}</strong> more for Complimentary Delivery
+                  Add <strong>KSh {Math.round((100 - subtotal) * KES_PER_USD).toLocaleString()}</strong> (${(100 - subtotal).toFixed(2)}) more for Free Delivery
                 </span>
                 <div className="w-full bg-stone-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
                   <div
-                    className="bg-stone-900 h-full rounded-full transition-all duration-300"
+                    className="bg-emerald-600 h-full rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(100, (subtotal / 100) * 100)}%` }}
                   />
                 </div>
@@ -115,7 +119,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="text-center py-16 text-stone-500">
                 <ShoppingBag className="w-12 h-12 mx-auto text-stone-300 mb-3" />
                 <p className="font-semibold text-stone-800">Your bag is empty</p>
-                <p className="text-xs text-stone-500 mt-1">Explore items in the storefront and add them to your bag.</p>
+                <p className="text-xs text-stone-500 mt-1">Explore 254 drops in the storefront and add items to your bag.</p>
                 <button
                   onClick={onClose}
                   className="mt-6 bg-stone-900 text-white text-xs font-semibold px-5 py-2.5 rounded-full hover:bg-black transition shadow-xs"
@@ -172,9 +176,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         </button>
                       </div>
 
-                      <span className="text-sm font-extrabold text-stone-900">
-                        ${(product.price * quantity).toFixed(2)}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-sm font-extrabold text-stone-900 block">
+                          KSh {Math.round(product.price * quantity * KES_PER_USD).toLocaleString()}
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-medium">
+                          (${(product.price * quantity).toFixed(2)})
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -194,7 +203,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       type="text"
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder="Coupon (try TAHMEED10)"
+                      placeholder="Coupon (try NAIROBI254)"
                       className="w-full text-xs uppercase bg-white border border-stone-300 rounded-full pl-8 pr-3 py-2 text-stone-900 focus:outline-none focus:border-stone-900"
                     />
                     <Tag className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
@@ -214,42 +223,47 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-2 text-xs text-stone-600">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-stone-900">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-stone-900">
+                    KSh {Math.round(subtotal * KES_PER_USD).toLocaleString()} (${subtotal.toFixed(2)})
+                  </span>
                 </div>
 
                 {appliedDiscountRate > 0 && (
                   <div className="flex justify-between text-emerald-700 font-medium">
                     <span>Discount ({(appliedDiscountRate * 100).toFixed(0)}%)</span>
-                    <span>-${discountAmount.toFixed(2)}</span>
+                    <span>-KSh {Math.round(discountAmount * KES_PER_USD).toLocaleString()} (-${discountAmount.toFixed(2)})</span>
                   </div>
                 )}
 
                 <div className="flex justify-between">
-                  <span>Shipping (Tahmeed Logistics)</span>
-                  <span>{shippingFee === 0 ? <strong className="text-emerald-700">Complimentary</strong> : `$${shippingFee.toFixed(2)}`}</span>
+                  <span>Shipping (Fargo Courier Kenya)</span>
+                  <span>{shippingFee === 0 ? <strong className="text-emerald-700">Complimentary</strong> : `KSh ${(shippingFee * KES_PER_USD).toLocaleString()} ($${shippingFee.toFixed(2)})`}</span>
                 </div>
 
-                <div className="flex justify-between">
-                  <span>Estimated Tax</span>
-                  <span>${estimatedTax.toFixed(2)}</span>
-                </div>
-
-                <div className="flex justify-between text-base font-extrabold text-stone-900 pt-2.5 border-t border-stone-200">
-                  <span>Total Amount</span>
-                  <span>${total.toFixed(2)}</span>
+                <div className="flex justify-between items-baseline text-base font-extrabold text-stone-900 pt-2.5 border-t border-stone-200">
+                  <span>Total Due</span>
+                  <div className="text-right">
+                    <span className="text-lg font-black text-emerald-700 block">
+                      KSh {totalKES.toLocaleString()}
+                    </span>
+                    <span className="text-[11px] text-stone-400 font-normal">
+                      (${total.toFixed(2)} USD)
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Proceed to checkout button */}
               <button
                 onClick={() => onProceedToCheckout(discountAmount)}
-                className="w-full mt-4 bg-stone-900 hover:bg-black text-white font-semibold text-xs sm:text-sm py-3.5 rounded-full shadow-xs transition flex items-center justify-center gap-2 active:scale-98"
+                className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm py-3.5 rounded-full shadow-xs transition flex items-center justify-center gap-2 active:scale-98"
               >
-                <span>Proceed to Checkout</span>
+                <Smartphone className="w-4 h-4" />
+                <span>Checkout (M-Pesa / Card)</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <div className="mt-3 text-center text-[10px] text-stone-400 flex items-center justify-center gap-1">
+              <div className="mt-3 text-center text-[10px] text-stone-500 flex items-center justify-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Encrypted 256-bit checkout • Official Tahmeed Guarantee</span>
               </div>

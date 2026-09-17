@@ -11,7 +11,9 @@ import {
   ExternalLink,
   Music,
   Disc,
-  Lock
+  Lock,
+  Smartphone,
+  MapPin
 } from 'lucide-react';
 import { UserAccount } from '../types';
 
@@ -28,16 +30,23 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
   const isAdmin = (user?.email || '').trim().toLowerCase() === 'derrickngure39@gmail.com';
 
   return (
-    <footer className="bg-[#f5f5f7] text-[#6e6e73] text-xs border-t border-stone-200/90">
+    <footer className="bg-[#f5f5f7] text-[#6e6e73] text-xs border-t border-stone-200/90 relative">
+      {/* Kenyan Flag Subtle Accent Ribbon */}
+      <div className="h-1 w-full flex">
+        <div className="flex-1 bg-stone-900"></div>
+        <div className="flex-1 bg-red-600"></div>
+        <div className="flex-1 bg-emerald-600"></div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         
-        {/* Footnote SEO Disclaimer (Apple style legal notice) */}
+        {/* Footnote Notice */}
         <div className="pb-8 mb-8 border-b border-stone-200/80 text-[11px] leading-relaxed text-stone-500 space-y-2">
           <p>
-            1. <strong>Tahmeed.com</strong> is the official registered web portal and merchandise storefront for artist Tahmeed. All merchandise items are official label pressings dispatched directly with end-to-end global tracking.
+            1. <strong>Tahmeed.com</strong> is the official registered web portal and merchandise storefront for Kenyan recording artist Tahmeed. All merchandise items are dispatched directly from Nairobi with nationwide doorstep delivery via Fargo Courier / Sendy / Wells Fargo and global DHL tracking.
           </p>
           <p>
-            2. Live performance and studio booking reservations are subject to management approval and date availability. Confirmation references and event schedules are provided immediately upon booking.
+            2. Payments supported in Kenyan Shillings (KES) via Safaricom Lipa na M-PESA Buy Goods Till (8942201), Google Pay, and international Visa / Mastercard.
           </p>
           <p>
             3. Google Search Optimization features MusicGroup, Person, and Store Schema.org structured data, responsive mobile layout, and canonical sitemaps configured for high index ranking.
@@ -57,11 +66,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
               </span>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Official artist portal, exclusive tour merchandise storefront, live concert bookings, and verified music broadcasts.
+              Official artist portal, 254 tour merchandise storefront, live concert bookings in Nairobi & East Africa, and verified music broadcasts.
             </p>
             <div className="flex items-center gap-1.5 text-emerald-700 text-[11px] font-semibold pt-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Google Search Index Verified Entity</span>
+              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Nairobi, Kenya • 254 Sound System</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-emerald-800 text-[11px] font-semibold">
+              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Lipa na M-PESA Verified Merchant</span>
             </div>
           </div>
 
@@ -73,12 +86,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
             <ul className="space-y-2 text-stone-600">
               <li>
                 <a href="#store" className="hover:text-stone-950 transition flex items-center gap-1.5">
-                  <ShoppingBag className="w-3 h-3 text-stone-500" /> Tour Merchandise
+                  <ShoppingBag className="w-3 h-3 text-stone-500" /> 254 Tour Merchandise
                 </a>
               </li>
               <li>
                 <a href="#bookings" className="hover:text-stone-950 transition flex items-center gap-1.5">
-                  <Calendar className="w-3 h-3 text-stone-500" /> Artist & Live Shows
+                  <Calendar className="w-3 h-3 text-stone-500" /> Live Shows & Festivals
                 </a>
               </li>
               <li>
@@ -88,7 +101,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
               </li>
               <li>
                 <a href="#contact" className="hover:text-stone-950 transition flex items-center gap-1.5">
-                  <Mail className="w-3 h-3 text-stone-500" /> Artist Bureau & Contact
+                  <Mail className="w-3 h-3 text-stone-500" /> Artist Bureau & Inquiries
                 </a>
               </li>
             </ul>
@@ -117,8 +130,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
                 </a>
               </li>
               <li className="flex items-center gap-1.5">
-                <Terminal className="w-3 h-3 text-purple-600" />
-                <span>Django REST Deployment Ready</span>
+                <Terminal className="w-3 h-3 text-emerald-600" />
+                <span>Termux & Render Ready</span>
               </li>
             </ul>
           </div>
@@ -126,16 +139,16 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
           {/* Site Administration & CMS */}
           <div>
             <h4 className="text-[#1d1d1f] font-bold text-xs uppercase tracking-wider mb-3">
-              Content & Drops
+              Content Studio
             </h4>
             {isAdmin ? (
               <>
                 <p className="text-[11px] text-stone-500 mb-3 leading-relaxed">
-                  Logged in as verified administrator ({user?.email}). You can manage inventory, upload media, and update site SEO.
+                  Logged in as verified administrator ({user?.email}). Manage Kenyan drops, M-Pesa inventory, video broadcasts, and SEO.
                 </p>
                 <button
                   onClick={onOpenAdmin}
-                  className="inline-flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2 rounded-full border border-stone-800 transition shadow-2xs active:scale-98"
+                  className="inline-flex items-center gap-1.5 bg-stone-900 hover:bg-black text-white text-xs font-medium px-4 py-2 rounded-full border border-stone-800 transition shadow-2xs active:scale-98"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Launch Content Studio</span>
@@ -159,7 +172,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, user }) => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-stone-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-500 text-[11px]">
           <div>
-            Copyright © {new Date().getFullYear()} tahmeed.com. All Rights Reserved. Official artist flagship.
+            Copyright © {new Date().getFullYear()} tahmeed.com. Made in Nairobi, Kenya 🇰🇪. All Rights Reserved.
           </div>
 
           <div className="flex items-center gap-6">
